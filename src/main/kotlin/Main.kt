@@ -1,10 +1,8 @@
+import common.CompletableFutureCoroutine
 import coroutines.PersonServiceC
 import futures.PersonServiceF
 import kotlinx.coroutines.experimental.CommonPool
 import java.util.concurrent.CompletableFuture
-import kotlin.coroutines.experimental.Continuation
-import kotlin.coroutines.experimental.CoroutineContext
-import kotlin.coroutines.experimental.startCoroutine
 
 
 fun main(args: Array<String>) {
@@ -14,20 +12,26 @@ fun main(args: Array<String>) {
 
     // Multiple async operations
     findPersonsTest()
+
+    // Async with control flow
+    findPersonsRetryTest()
     println("------------------------")
 }
 
 fun findPersonTest() {
     showF("Basic Future", { PersonServiceF.findPerson("personId") })
-
     showC("Basic Coroutines", { PersonServiceC.findPerson("personId") })
 }
 
 fun findPersonsTest() {
-    showF("Multiple Futures", { PersonServiceF.findPersons(listOf("personId1", "personId2", "personId3", "personId4")) })
+    showF("Multiple Futures", { PersonServiceF.findPersons(listOf("personId1", "personId2", "personId3")) })
+    showC("Multiple Coroutines", { PersonServiceC.findPersons(listOf("personId1", "personId2", "personId3")) })
+    showC("Multiple Coroutines async", { PersonServiceC.findPersonsParallel(listOf("personId1", "personId2", "personId3")) })
+}
 
-    showC("Multiple Coroutines", { PersonServiceC.findPersons(listOf("personId1", "personId2", "personId3", "personId4")) })
-    showC("Multiple Coroutines aync", { PersonServiceC.findPersonsParallel(listOf("personId1", "personId2", "personId3", "personId4")) })
+fun findPersonsRetryTest() {
+    showF("Control Future", { PersonServiceF.findPersonRetry("personId1") })
+    showC("Control Coroutine", { PersonServiceC.findPersonRetry("personId1") })
 }
 
 fun <A> showF(name: String, coroutine: () -> CompletableFuture<A>) {
@@ -44,18 +48,4 @@ fun <A> show(type: String, block: () -> A) {
     val end = System.currentTimeMillis()
     println("$type ${end - start} ms")
 
-}
-
-class CompletableFutureCoroutine<T>(override val context: CoroutineContext, coroutine: suspend () -> T) : CompletableFuture<T>(), Continuation<T> {
-    init {
-        coroutine.startCoroutine(this)
-    }
-
-    override fun resume(value: T) {
-        complete(value)
-    }
-
-    override fun resumeWithException(exception: Throwable) {
-        completeExceptionally(exception)
-    }
 }

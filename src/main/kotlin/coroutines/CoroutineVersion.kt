@@ -1,11 +1,11 @@
 package coroutines
 
 import common.Person
-import futures.PersonRepositoryF
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.delay
-import kotlin.coroutines.experimental.Continuation
-import kotlin.coroutines.experimental.suspendCoroutine
+import org.funktionale.either.Either
+import org.funktionale.option.Option
+import java.util.Random
 
 object PersonServiceC {
     suspend fun findPerson(id: String): Person {
@@ -20,7 +20,21 @@ object PersonServiceC {
 
     suspend fun findPersonsParallel(ids: List<String>): List<Person> {
         val coroutines = ids.map { id -> async { PersonRepositoryC.findPerson(id) } }
-        return coroutines.map{ it.await() }
+        return coroutines.map { it.await() }
+    }
+
+    suspend fun findPersonRetry(id: String, maxTries: Int = 3): Option<Person> {
+        return if (maxTries <= 0)
+            Option.None
+        else {
+            val tryFind = PersonRepositoryC.tryFindPerson(id)
+
+            // Cannot use fold since continuation can't be in non suspend callback
+            when(tryFind) {
+                is Either.Left -> findPersonRetry(id, maxTries - 1)
+                is Either.Right -> Option.Some(tryFind.r)
+            }
+        }
     }
 }
 
@@ -30,17 +44,10 @@ object PersonRepositoryC {
         return Person(id, "John", "Doe", 35)
     }
 
-    suspend fun findPersonBis(id: String): Person {
-        val f = PersonRepositoryF.findPerson(id)
-
-        return suspendCoroutine { cont: Continuation<Person> ->
-            f.whenComplete { result, exception ->
-                if (exception == null)
-                    cont.resume(result)
-                else
-                    cont.resumeWithException(exception)
-            }
-        }
+    suspend fun tryFindPerson(id: String): Either<String, Person> {
+        return if (Random().nextBoolean())
+            Either.right(findPerson(id))
+        else
+            Either.left("failed")
     }
-
 }
