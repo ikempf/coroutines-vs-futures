@@ -9,6 +9,8 @@ object PersonServiceF {
         return PersonRepositoryF.findPerson(id)
     }
 
+    // Executed in parallel since CompletableFutures are not lazy
+    // If they were to be lazy it would still be simple to parallelize (Future.sequence(...))
     fun findPersons(ids: List<String>): CompletableFuture<List<Person>> {
         val eventualPersons = ids.map(PersonRepositoryF::findPerson)
 
@@ -22,6 +24,9 @@ object PersonServiceF {
 
 object PersonRepositoryF {
     fun findPerson(id: String): CompletableFuture<Person> {
-        return CompletableFuture.completedFuture(Person(id, "John", "Doe", 35))
+        return CompletableFuture.supplyAsync{
+            Thread.sleep(1000)
+            Person(id, "John", "Doe", 35)
+        }
     }
 }

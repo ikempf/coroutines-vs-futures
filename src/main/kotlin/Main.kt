@@ -8,29 +8,34 @@ import kotlin.coroutines.experimental.startCoroutine
 
 
 fun main(args: Array<String>) {
+    println("------------------------")
+    // Basic async
     findPersonTest()
+
+    // Multiple async operations
     findPersonsTest()
+    println("------------------------")
 }
 
-
 fun findPersonTest() {
-    showF({ PersonServiceF.findPerson("personId") })
+    showF("Basic Future", { PersonServiceF.findPerson("personId") })
 
-    showC({ PersonServiceC.findPerson("personId") })
+    showC("Basic Coroutines", { PersonServiceC.findPerson("personId") })
 }
 
 fun findPersonsTest() {
-    showF({ PersonServiceF.findPersons(listOf("personId1", "personId2", "personId3")) })
+    showF("Multiple Futures", { PersonServiceF.findPersons(listOf("personId1", "personId2", "personId3", "personId4")) })
 
-    showC({ PersonServiceC.findPerson("personId") })
+    showC("Multiple Coroutines", { PersonServiceC.findPersons(listOf("personId1", "personId2", "personId3", "personId4")) })
+    showC("Multiple Coroutines aync", { PersonServiceC.findPersonsParallel(listOf("personId1", "personId2", "personId3", "personId4")) })
 }
 
-fun <A> showF(coroutine: () -> CompletableFuture<A>) {
-    show("Future", { coroutine().get() })
+fun <A> showF(name: String, coroutine: () -> CompletableFuture<A>) {
+    show(name, { coroutine().get() })
 }
 
-fun <A> showC(coroutine: suspend () -> A) {
-    show("Coroutine", { CompletableFutureCoroutine<A>(CommonPool, coroutine).get() })
+fun <A> showC(name: String, coroutine: suspend () -> A) {
+    show(name, { CompletableFutureCoroutine(CommonPool, coroutine).get() })
 }
 
 fun <A> show(type: String, block: () -> A) {
@@ -45,6 +50,12 @@ class CompletableFutureCoroutine<T>(override val context: CoroutineContext, coro
     init {
         coroutine.startCoroutine(this)
     }
-    override fun resume(value: T) { complete(value) }
-    override fun resumeWithException(exception: Throwable) { completeExceptionally(exception) }
+
+    override fun resume(value: T) {
+        complete(value)
+    }
+
+    override fun resumeWithException(exception: Throwable) {
+        completeExceptionally(exception)
+    }
 }
